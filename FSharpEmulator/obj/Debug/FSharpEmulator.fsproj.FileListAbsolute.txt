@@ -1,0 +1,1 @@
+F:\Development\FSharpEmulator\FSharpEmulator\obj\Debug\FSharpEmulator.fsprojResolveAssemblyReference.cache
