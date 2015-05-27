@@ -38,12 +38,18 @@ let XorPM a b =
 let Xor a b = 
     Or (And a (Not b)) (And (Not a) b) 
 
-let Mux a b sel =
+let MuxPM a b sel =
     match sel with
     | false -> a
     | _ -> b
-    
-let DMux x sel =
+
+let Mux a b sel =
+    Nand (Nand a sel) (Nand (Not sel) b)    
+
+let DMuxPM x sel =
     match sel with
     | false -> (x,false)
     | _ -> (false,x)
+
+let Dmux x sel =
+    (And x (Not x), And x sel)
