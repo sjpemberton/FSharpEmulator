@@ -51,5 +51,33 @@ let DMuxPM x sel =
     | false -> (x,false)
     | _ -> (false,x)
 
-let Dmux x sel =
+let DMux x sel =
     (And x (Not x), And x sel)
+
+let MultiNot input = 
+    input |> Seq.map Not
+
+let MultiAnd a b = 
+    Seq.zip a b 
+    |> Seq.map (fun (a,b) -> And a b)
+
+let MultiOr a b =
+    Seq.zip a b 
+    |> Seq.map (fun (a,b) -> Or a b)
+
+let MultiMux a b sel = 
+    Seq.zip a b 
+    |> Seq.map (fun (a,b) -> Mux a b sel)
+
+let MultiDMux input sel = 
+    input
+    |> Seq.map (DMux sel)
+    
+let MultiWayOr input =
+    input
+    |> Seq.reduce Or
+
+let Mux4Way16 a b c d sel = 
+    let m1 = MultiMux a b (fst sel)
+    let m2 = MultiMux c d (fst sel)
+    MultiMux m1 m2 (snd sel)
