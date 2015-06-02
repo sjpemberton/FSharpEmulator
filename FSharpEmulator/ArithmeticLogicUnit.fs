@@ -77,7 +77,24 @@ let MultiWayOr input =
     input
     |> Seq.reduce Or
 
-let Mux4Way16 a b c d sel = 
-    let m1 = MultiMux a b (fst sel)
-    let m2 = MultiMux c d (fst sel)
-    MultiMux m1 m2 (snd sel)
+let Mux4Way16 a b c d (sel:bool array) = 
+    let m1 = MultiMux a b sel.[0]
+    let m2 = MultiMux c d sel.[0]
+    MultiMux m1 m2 sel.[1]
+
+let Mux8Way16 a b c d e f g h (sel:bool array) =
+    let m1 = Mux4Way16 a b c d sel.[0..1]
+    let m2 = Mux4Way16 e f g h sel.[0..1]
+    MultiMux m1 m2 sel.[2]
+
+let DMux4Way x (sel:bool array) = 
+    let (d1,d2) = DMux x sel.[1]
+    let (a,b) = DMux d1 sel.[0]
+    let (c,d) =  DMux d2 sel.[0]
+    (a,b,c,d)
+
+let DMux8Way x (sel:bool array) = 
+    let (d1,d2) = DMux x sel.[2]
+    let (a,b,c,d) = DMux4Way d1 sel.[0..1]
+    let (e,f,g,h) = DMux4Way d2 sel.[0..1]
+    (a,b,c,d,e,f,g,h)
