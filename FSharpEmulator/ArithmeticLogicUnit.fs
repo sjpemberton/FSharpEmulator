@@ -43,7 +43,7 @@ let MuxPM a b sel =
     | false -> a
     | _ -> b
 
-let Mux a b sel =
+let Mux sel a b =
     Nand (Nand a sel) (Nand (Not sel) b)    
 
 let DMuxPM x sel =
@@ -54,38 +54,40 @@ let DMuxPM x sel =
 let DMux x sel =
     (And x (Not x), And x sel)
 
-let MultiNot input = 
-    input |> Seq.map Not
 
-let MultiAnd a b = 
-    Seq.zip a b 
-    |> Seq.map (fun (a,b) -> And a b)
+let unaryArray gate bits =
+    bits |> Array.map gate
 
-let MultiOr a b =
-    Seq.zip a b 
-    |> Seq.map (fun (a,b) -> Or a b)
+let binaryArray gate aBits bBits =
+    Array.zip aBits bBits 
+    |> unaryArray gate
 
-let MultiMux a b sel = 
-    Seq.zip a b 
-    |> Seq.map (fun (a,b) -> Mux a b sel)
+//let tertiaryArray func a b c =
+//    Array.zip a b 
+//    |> unaryArray func
 
-let MultiDMux input sel = 
-    input
-    |> Seq.map (DMux sel)
+let MultiNot = unaryArray Not
+
+let MultiAnd = binaryArray (fun (a,b) -> And a b)
+
+let MultiOr = binaryArray (fun (a,b) -> Or a b)
+
+let MultiMux sel = binaryArray (fun (a,b) -> Mux a b sel)
+
+let MultiDMux sel = unaryArray (DMux sel)
     
-let MultiWayOr input =
-    input
-    |> Seq.reduce Or
+let MultiWayOr bits = 
+    bits |> Array.reduce Or
 
 let Mux4Way16 a b c d (sel:bool array) = 
-    let m1 = MultiMux a b sel.[0]
-    let m2 = MultiMux c d sel.[0]
-    MultiMux m1 m2 sel.[1]
+    let m1 = MultiMux sel.[0] a b 
+    let m2 = MultiMux sel.[0] c d
+    MultiMux sel.[1] m1 m2 
 
 let Mux8Way16 a b c d e f g h (sel:bool array) =
     let m1 = Mux4Way16 a b c d sel.[0..1]
     let m2 = Mux4Way16 e f g h sel.[0..1]
-    MultiMux m1 m2 sel.[2]
+    MultiMux sel.[2] m1 m2 
 
 let DMux4Way x (sel:bool array) = 
     let (d1,d2) = DMux x sel.[1]
