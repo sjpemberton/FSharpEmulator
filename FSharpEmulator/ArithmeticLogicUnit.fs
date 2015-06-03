@@ -101,3 +101,26 @@ let DMux8Way x (sel:bool array) =
     let (a,b,c,d) = DMux4Way d1 sel.[0..1]
     let (e,f,g,h) = DMux4Way d2 sel.[0..1]
     (a,b,c,d,e,f,g,h)
+
+let HalfAdder a b = 
+    let sum = Xor a b
+    let carry = And a b
+    (sum,carry)
+
+let FullAdder a b c = 
+    let (s1,c1) = HalfAdder a b
+    let (sum,c2) = HalfAdder s1 c
+    (sum, Or c1 c2)
+
+let Adder aBits bBits =
+    let rec addBits aBits bBits carry accu = 
+        match aBits, bBits with
+        | aHead :: aTail, bHead :: bTail -> 
+            let (sum,c) = FullAdder aHead bHead carry
+            addBits aTail bTail c (sum :: accu)
+        | [_],_
+        | _,[_]
+        | _,_ -> accu
+    addBits aBits bBits false List.empty
+    |> List.rev
+    |> List.toArray
