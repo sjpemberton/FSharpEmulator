@@ -18,10 +18,9 @@ module PatternMatched =
 
     let Or a b =
         match a, b with
-        | true, false -> true
-        | false, true -> true
-        | true, true -> true
-        | false, false -> false 
+        | true, _ -> true
+        | _, true -> true
+        | _, _ -> false 
 
     let Xor a b =
         match a, b with
