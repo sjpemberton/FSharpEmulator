@@ -28,12 +28,12 @@ module PatternMatched =
         | false, true -> true
         | _, _ -> false
 
-    let Mux a b sel =
+    let Mux sel a b  =
         match sel with
         | false -> a
         | _ -> b
 
-    let DMux x sel =
+    let DMux sel x =
         match sel with
         | false -> (x,false)
         | _ -> (false,x)
@@ -68,22 +68,26 @@ let unaryArray gate bits =
 
 let binaryArray gate aBits bBits =
     Array.zip aBits bBits 
-    |> unaryArray gate
+    |> unaryArray (fun (a,b) -> gate a b)
 
 let MultiNot = unaryArray Not
 
-let MultiAnd = binaryArray (fun (a,b) -> And a b)
+let MultiAnd = binaryArray And
 
-let MultiOr = binaryArray (fun (a,b) -> Or a b)
+let MultiOr = binaryArray Or
 
-let MultiMux sel = binaryArray (fun (a,b) -> Mux a b sel)
+let MultiMux sel = 
+    Mux sel
+    |> binaryArray
 
-let MultiDMux sel = unaryArray (DMux sel)
+let MultiDMux sel = 
+    DMux sel
+    |> unaryArray
     
 let MultiWayOr bits = 
     bits |> Array.reduce Or
 
-let MultiXNOR = binaryArray (fun (a,b) -> XNOR a b)
+let MultiXNOR = binaryArray XNOR
 
 let Mux4Way16 a b c d (sel:bool array) = 
     let m1 = MultiMux sel.[0] a b 
