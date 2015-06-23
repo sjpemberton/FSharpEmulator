@@ -129,8 +129,7 @@ let Adder aBits bBits =
             let (sum,c) = FullAdder aHead bHead carry
             addBits aTail bTail c (sum :: accu)
         | [],_
-        | _,[]
-        | [],[] -> accu
+        | _,[] -> accu
     addBits (aBits |> List.rev) (bBits |> List.rev) false List.empty
     |> List.toArray
 
@@ -161,11 +160,3 @@ let ALU xBits yBits nx zx ny zy f no =
     let ng = MultiWayOr (MultiAnd out [|for i in 1..16 -> match i with | 16 -> true | _ -> false|] )
     
     (out, zr, ng)
-
-
-//  // see if out is 0
-//    Comparator16(a=check, b[0..15]=false, out=zr);
-//
-//    // check out MSB to see if out < 0
-//    Comparator(a=MSB, b=true, out=ng);
-// 
