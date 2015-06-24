@@ -2,19 +2,21 @@
 
 open ArithmeticLogicUnit
 
-let toBools (ints:int array) = 
-    let intToBool = function
-        | 1 -> true
-        | _ -> false
-    ints
-    |> Array.map intToBool
+let stringToInts s =
+    s |> Array.map (function | '1' ->  1 | _ -> 0)
 
-let toInts (bools:bool array) = 
-    let boolToInt = function
-        | true -> 1
-        | _ -> 0
-    bools
-    |> Array.map boolToInt
+let intsToBools ints =
+    ints |> Array.map (function | 1 -> true | _ -> false)
+
+let boolsToInts bools= 
+    bools |> Array.map (function | true -> 1  | _ -> 0)
+
+let intsToString ints =
+    ints |> Array.map (function | 1 -> "1" | _ -> "0")
+    |> String.concat ""
+
+let stringToBools = stringToInts >> intsToBools
+let boolsToString = boolsToInts >> intsToString
 
 let toBinary i =
     let rec convert i acc =
@@ -53,10 +55,10 @@ let toTwosCompliment i b =
             abs i |> toBinary
             |> padBits b
             |> convertToTwosCompliment
-            |> List.toArray
-            |> toBools
+            |> List.toArray 
+            |> intsToBools
             |> Incrementer
-            |> toInts
+            |> boolsToInts
             |> Array.toList
         | _ -> 
             i |> toBinary
@@ -67,3 +69,17 @@ let toDecimalFromTC (b:int list) =
     let msb = b.[0]
     let r = b |> toDecimal
     (if msb = 0 then r else -r)
+
+open System
+
+let andComparison = "|   a   |   b   |  out  |
+|   0   |   0   |   0   |
+|   0   |   1   |   0   |
+|   1   |   0   |   0   |
+|   1   |   1   |   1   |"
+
+let parseFile (s:string)  = 
+    s.Split([|'\n'|]) 
+    |> Seq.skip 1
+    |> Seq.map (fun s -> s.Split([|"|"|],StringSplitOptions.RemoveEmptyEntries)
+                            |> Array.map(fun s -> s.Trim()))

@@ -160,3 +160,4 @@ let ALU xBits yBits nx zx ny zy f no =
     let ng = MultiWayOr (MultiAnd out [|for i in 1..16 -> match i with | 16 -> true | _ -> false|] )
     
     (out, zr, ng)
+
