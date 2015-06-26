@@ -2,21 +2,18 @@
 
 open ArithmeticLogicUnit
 
-let stringToInts s =
-    s |> Array.map (function | '1' ->  1 | _ -> 0)
+let stringToInt = function | "1" ->  1 | _ -> 0
+let intToBool = function | 1 -> true | _ -> false
+let boolToInt = function | true -> 1  | _ -> 0
+let intToString = function | 1 -> "1" | _ -> "0"
 
-let intsToBools ints =
-    ints |> Array.map (function | 1 -> true | _ -> false)
+//let stringToInts = Array.map stringToInt
+//let intsToBools ints = ints |> Array.map intToBool
+//let boolsToInts bools=  bools |> Array.map boolToInt
 
-let boolsToInts bools= 
-    bools |> Array.map (function | true -> 1  | _ -> 0)
-
-let intsToString ints =
-    ints |> Array.map (function | 1 -> "1" | _ -> "0")
-    |> String.concat ""
-
-let stringToBools = stringToInts >> intsToBools
-let boolsToString = boolsToInts >> intsToString
+let intsToString = Array.map intToString >> String.concat ""
+let stringToBool = stringToInt >> intToBool
+let boolToString = boolToInt >> intToString
 
 let toBinary i =
     let rec convert i acc =
@@ -56,9 +53,9 @@ let toTwosCompliment i b =
             |> padBits b
             |> convertToTwosCompliment
             |> List.toArray 
-            |> intsToBools
+            |> Array.map intToBool
             |> Incrementer
-            |> boolsToInts
+            |>  Array.map boolToInt
             |> Array.toList
         | _ -> 
             i |> toBinary
@@ -79,7 +76,31 @@ let andComparison = "|   a   |   b   |  out  |
 |   1   |   1   |   1   |"
 
 let parseFile (s:string)  = 
-    s.Split([|'\n'|]) 
-    |> Seq.skip 1
+    s.Split([|'\n'|])
     |> Seq.map (fun s -> s.Split([|"|"|],StringSplitOptions.RemoveEmptyEntries)
-                            |> Array.map(fun s -> s.Trim()))
+                            |> Array.map(fun s -> s.Trim())
+                            |> Array.toList)
+
+let rec createDict (matrix: string list list) (cols:string list) =
+    match matrix with
+    | (row::rest) -> 
+        let argDict = row 
+                      |> List.mapi (fun i x -> (cols.[i], x)) 
+                      |> Map.ofSeq
+        [argDict] @ createDict rest cols
+    | _ -> [] 
+
+let createTestData matrix =
+    createDict (List.tail matrix) (List.head matrix)
+   
+let executeTests func data =
+    let testData = createTestData data
+    let rec execute func (testData: Map<string,string> list) = 
+        match testData with
+        | case::rest ->
+            sprintf "result = %b - expecting %b \n" (func case) (stringToBool case.["out"]) + execute func rest
+        |[] -> "Done"
+    execute func testData
+
+let andTest (case: Map<string,string>) =
+    And (stringToBool case.["a"]) (stringToBool case.["b"])
