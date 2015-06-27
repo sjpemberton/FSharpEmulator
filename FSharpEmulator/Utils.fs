@@ -4,23 +4,23 @@ open ArithmeticLogicUnit
 open System.IO
 open System
 
-let stringToInt = 
-    function 
+let stringToInt = function 
     | "1" -> 1
     | _ -> 0
 
-let intToBool = 
-    function 
+let charToInt = function 
+    | '1' -> 1
+    | _ -> 0
+
+let intToBool = function 
     | 1 -> true
     | _ -> false
 
-let boolToInt = 
-    function 
+let boolToInt = function 
     | true -> 1
     | _ -> 0
 
-let intToString = 
-    function 
+let intToString = function 
     | 1 -> "1"
     | _ -> "0"
 
@@ -28,6 +28,7 @@ let intToString =
 //let intsToBools ints = ints |> Array.map intToBool
 //let boolsToInts bools=  bools |> Array.map boolToInt
 let intsToString = Array.map intToString >> String.concat ""
+let boolsToString = Array.map boolToInt >> intsToString
 let stringToBool = stringToInt >> intToBool
 let boolToString = boolToInt >> intToString
 
@@ -80,11 +81,11 @@ let toTwosCompliment i b =
             |> padBits b
     convertToBinary i
 
-let toDecimalFromTC (b : int list) = 
-    let msb = b.[0]
-    let r = b |> toDecimal
-    (if msb = 0 then r
-     else -r)
+let toDecimalFromTC (binary : int list) =
+    let result = binary |> toDecimal
+    match binary.[0] with
+    | 0 -> result
+    | _ -> -result
 
 let parseFile path = 
     File.ReadAllLines path
@@ -94,22 +95,31 @@ let parseFile path =
            |> Array.toList)
     |> Seq.toList
 
-let rec createMap (matrix : string list list) (cols : string list) = 
+let rec createMap matrix (cols : string list) = 
     match matrix with
-    | (row :: rest) -> 
+    | row :: rest -> 
         [ row
           |> List.mapi (fun i x -> (cols.[i], x))
           |> Map.ofSeq ]
         @ createMap rest cols
     | _ -> []
 
-let executeTests func data = 
+let executeTests path func = 
+    let data = parseFile path
     let testData = createMap (List.tail data) (List.head data)
-    let rec execute func (testData : Map<string, string> list) = 
+    let rec execute func testData num = 
         match testData with
         | case :: rest -> 
-            sprintf "result = %b - expecting %b \n" (func case) (stringToBool case.["out"]) + execute func rest
-        | [] -> "Done"
-    execute func testData
+            sprintf "Test number %i - %s \n" num  (if func case then "Success" else "Failure") + execute func rest (num+1)
+        | [] -> "All tests complete"
+    execute func testData 0
 
-let andTest (case : Map<string, string>) = And (stringToBool case.["a"]) (stringToBool case.["b"])
+let andTest (case : Map<string, string>) = 
+    And (stringToBool case.["a"]) (stringToBool case.["b"]) = stringToBool case.["out"]
+
+let IncTest (case : Map<string, string>) = 
+    case.["in"]
+    |> Seq.map (charToInt >> intToBool)
+    |> Seq.toArray
+    |> Incrementer
+    |> boolsToString = case.["out"]
