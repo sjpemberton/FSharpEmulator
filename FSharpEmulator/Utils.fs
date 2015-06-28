@@ -35,18 +35,18 @@ let boolToString = boolToInt >> intToString
 let toBinary i = 
     let rec convert i acc = 
         match i with
-        | _ when i > 0 -> (i % 2) :: (convert (i / 2) acc)
+        | _ when i > 0 -> (i % 2) :: convert (i / 2) acc
         | _ -> acc
     convert i [] |> List.rev
 
 let toDecimal b = 
     let rec convert b i acc = 
         match b with
-        | h :: t -> ((float h) * 2.0 ** i) + (convert t (i + 1.0) acc)
+        | h :: t -> float h * 2.0 ** i + convert t (i + 1.0) acc
         | [] -> acc
     convert (b |> List.rev) 0.0 0.0 |> int
 
-let convertToTwosCompliment b = 
+let flipBits b = 
     let rec convert b acc = 
         match b with
         | h :: t -> 
@@ -63,23 +63,21 @@ let padBits length (bits : int list) =
 
 //Doesn't handle overflow
 let toTwosCompliment i b = 
-    let convertToBinary = 
-        function 
-        | _ when i < 0 -> 
-            abs i
-            |> toBinary
-            |> padBits b
-            |> convertToTwosCompliment
-            |> List.toArray
-            |> Array.map intToBool
-            |> Incrementer
-            |> Array.map boolToInt
-            |> Array.toList
-        | _ -> 
-            i
-            |> toBinary
-            |> padBits b
-    convertToBinary i
+    match i with
+    | _ when i < 0 -> 
+        abs i
+        |> toBinary
+        |> padBits b
+        |> flipBits
+        |> List.toArray
+        |> Array.map intToBool
+        |> Incrementer
+        |> Array.map boolToInt
+    | _ -> 
+        i
+        |> toBinary
+        |> padBits b
+        |> List.toArray
 
 let toDecimalFromTC (binary : int list) =
     let result = binary |> toDecimal

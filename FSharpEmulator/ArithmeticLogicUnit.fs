@@ -130,11 +130,11 @@ let Adder aBits bBits =
             addBits aTail bTail c (sum :: accu)
         | [],_
         | _,[] -> accu
-    addBits (aBits |> List.rev) (bBits |> List.rev) false List.empty
+    addBits (aBits |> Array.rev |> Array.toList) (bBits |> Array.rev |> Array.toList) false List.empty
     |> List.toArray
 
 //In plus one
-let Incrementer aBits = Adder (aBits |> List.ofArray) [ for i in 1 .. 16 -> match i with | 16 -> true | _ -> false ]
+let Incrementer aBits = Adder aBits [| for i in 1 .. 16 -> match i with | 16 -> true | _ -> false |]
 
 let ALU xBits yBits nx zx ny zy f no = 
     //handle x    
@@ -149,7 +149,7 @@ let ALU xBits yBits nx zx ny zy f no =
 
     //handle & / +
     let o3 = MultiAnd ox2 oy2 //an and would be
-    let o4 = Adder (List.ofArray ox2) (List.ofArray oy2) //addition would be
+    let o4 = Adder ox2 oy2 //addition would be
 
     //Output
     let o5 = MultiMux f o3 o4 //Choose and or addition
