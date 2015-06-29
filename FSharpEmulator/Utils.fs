@@ -39,13 +39,6 @@ let toBinary i =
         | _ -> acc
     convert i [] |> List.rev |> List.toArray
 
-let toDecimal b = 
-    let rec convert b i acc = 
-        match b with
-        | h :: t -> float h * 2.0 ** i + convert t (i + 1.0) acc
-        | [] -> acc
-    convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int
-
 let flipBits b = 
     let rec convert b acc = 
         match b with
@@ -75,15 +68,22 @@ let toTwosCompliment i b =
         |> toBinary
         |> padBits b
 
-let toDecimalFromTC b (binary : int array) =
+let toBase10 b = 
+    let rec convert b i acc = 
+        match b with
+        | h :: t -> float h * 2.0 ** i + convert t (i + 1.0) acc
+        | [] -> acc
+    convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int
+
+let toDecimal b (binary : int array) =
     match binary.[0] with
-    | 0 -> binary |> toDecimal
+    | 0 -> binary |> toBase10
     | _ -> 
         -(binary
         |> padBits b
         |> flipBits |> Array.map intToBool
         |> Increment |> Array.map boolToInt 
-        |> toDecimal)
+        |> toBase10)
         
 
 let parseFile path = 
