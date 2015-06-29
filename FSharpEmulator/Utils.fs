@@ -37,14 +37,14 @@ let toBinary i =
         match i with
         | _ when i > 0 -> (i % 2) :: convert (i / 2) acc
         | _ -> acc
-    convert i [] |> List.rev
+    convert i [] |> List.rev |> List.toArray
 
 let toDecimal b = 
     let rec convert b i acc = 
         match b with
         | h :: t -> float h * 2.0 ** i + convert t (i + 1.0) acc
         | [] -> acc
-    convert (b |> List.rev) 0.0 0.0 |> int
+    convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int
 
 let flipBits b = 
     let rec convert b acc = 
@@ -54,12 +54,12 @@ let flipBits b =
             | 1 -> 0 :: convert t acc
             | _ -> 1 :: convert t acc
         | [] -> acc
-    convert b []
+    convert (b |> List.ofSeq) []
+    |> List.toArray
 
-let padBits length (bits : int list) = 
-    let pad = length - bits.Length
-    [ for i in 1..pad -> 0 ]
-    @ bits
+let padBits length (bits : int array) =
+    let padding = [| for i in 1..(length - bits.Length) -> 0 |]
+    Array.concat [|padding; bits|]
 
 //Doesn't handle overflow
 let toTwosCompliment i b = 
@@ -68,22 +68,23 @@ let toTwosCompliment i b =
         abs i
         |> toBinary
         |> padBits b
-        |> flipBits
-        |> List.toArray
-        |> Array.map intToBool
-        |> Incrementer
-        |> Array.map boolToInt
+        |> flipBits |> Array.map intToBool
+        |> Increment |> Array.map boolToInt
     | _ -> 
         i
         |> toBinary
         |> padBits b
-        |> List.toArray
 
-let toDecimalFromTC (binary : int list) =
-    let result = binary |> toDecimal
+let toDecimalFromTC b (binary : int array) =
     match binary.[0] with
-    | 0 -> result
-    | _ -> -result
+    | 0 -> binary |> toDecimal
+    | _ -> 
+        -(binary
+        |> padBits b
+        |> flipBits |> Array.map intToBool
+        |> Increment |> Array.map boolToInt 
+        |> toDecimal)
+        
 
 let parseFile path = 
     File.ReadAllLines path
@@ -119,5 +120,5 @@ let IncTest (case : Map<string, string>) =
     case.["in"]
     |> Seq.map (charToInt >> intToBool)
     |> Seq.toArray
-    |> Incrementer
+    |> Increment
     |> boolsToString = case.["out"]

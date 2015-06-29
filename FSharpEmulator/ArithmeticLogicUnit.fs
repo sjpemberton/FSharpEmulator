@@ -134,7 +134,7 @@ let Adder aBits bBits =
     |> List.toArray
 
 //In plus one
-let Incrementer aBits = Adder aBits [| for i in 1 .. 16 -> match i with | 16 -> true | _ -> false |]
+let Increment aBits = Adder aBits [| for i in 1 .. 16 -> match i with | 16 -> true | _ -> false |]
 
 let ALU xBits yBits nx zx ny zy f no = 
     //handle x    
