@@ -49,6 +49,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <Compile Include="ArithmeticLogicUnit.fs" />
+    <Compile Include="Sequential.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
