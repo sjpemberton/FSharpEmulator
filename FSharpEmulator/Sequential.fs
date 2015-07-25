@@ -48,4 +48,26 @@ type SRLatchClocked() =
         | _ -> ()
         pState 
 
-     
+    
+type TestHarness = 
+    {
+        inputs:bool array; 
+        outputs: bool array option;
+        chip: bool array -> bool array 
+    }
+
+let cycle iterations (harness:TestHarness) =
+    let rec doCycle i state = 
+        let result = {state with outputs = Some (harness.chip state.inputs) }
+        printfn "%A" result.outputs
+        if i > 1
+        then doCycle (i-1) result
+        else result 
+    doCycle iterations harness
+
+let setInputs ins harness = 
+    {harness with inputs = ins;}
+
+//let testLatch (i: bool array) =
+//    let (a,b) = l.execute i.[0] i.[1]
+//    [|a;b;|]
