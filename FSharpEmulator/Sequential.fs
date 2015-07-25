@@ -34,19 +34,25 @@ type SRLatch() =
         state
 
 
-//We could add the clk into the execute, but this is not needed at this stage.
-//I've included it for completeness/correctness. This adds that extra level of propagation delay.
-//
-type SRLatchClocked() =
+//Adding the clk into the latch allows us to control when the state is set (Ie -only when the clock is high (true))
+type ClockedSRLatch() =
     let mutable state = (false,false)
     member x.execute s r clk =
-        let pState = state
-        match clk with //Only set the state on a tock 
-        | true -> state <- 
-                  (Nand s (snd state),
-                   Nand (fst state) r)
-        | _ -> ()
-        pState 
+        let (ns, nr) = (Nand s clk, Nand r clk)
+        state <- (Nand ns (snd state),
+                  Nand (fst state) nr)
+        state
+
+//type ClockedSRLatch() =
+//    let mutable state = (false,false)
+//    member x.execute s r clk =
+//        let pState = state
+//        match clk with //Only set the state on a tock 
+//        | true -> state <- 
+//                  (Nand s (snd state),
+//                   Nand (fst state) r)
+//        | _ -> ()
+//        pState 
 
     
 type TestHarness = 
