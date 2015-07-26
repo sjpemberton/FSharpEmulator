@@ -53,6 +53,19 @@ type RsFlipFlop() =
         let (a,b) = master.execute s r clk
         slave.execute a b (Not clk)
 
+//Clocked D latch is simply an SR latch with only one input.
+//The S input is negated to supply the R input
+type ClockedDLatch() =
+    let latch = new ClockedSRLatch()
+    member x.execute d clk =
+        latch.execute d (Not d) clk
+
+//The DFF
+//It is just an RS Flip Flop with a single input negated to supply both 
+type DFlipFlop() =
+    let ff = new RsFlipFlop()
+    member x.execute d clk =
+        ff.execute d (Not d) clk
 
 //type ClockedSRLatch() =
 //    let mutable state = (false,false)
