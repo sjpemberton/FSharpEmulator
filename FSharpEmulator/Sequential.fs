@@ -43,6 +43,17 @@ type ClockedSRLatch() =
                   Nand (fst state) nr)
         state
 
+//A master - slave latch configuration
+//This adds a delay to the setting of the slave state, allowing the chip to have the entire clock cycle to settle into it's state.
+type RsFlipFlop() =
+    let mutable state = (false,false)
+    let master = new ClockedSRLatch()
+    let slave = new ClockedSRLatch()
+    member x.execute s r clk = 
+        let (a,b) = master.execute s r clk
+        slave.execute a b (Not clk)
+
+
 //type ClockedSRLatch() =
 //    let mutable state = (false,false)
 //    member x.execute s r clk =
