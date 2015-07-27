@@ -61,7 +61,7 @@ let Mux sel a b =
     Nand (Nand a sel) (Nand (Not sel) b)    
 
 let DMux x sel =
-    (And x (Not x), And x sel)
+    (And x (Not sel), And x sel)
 
 let unaryArray gate bits =
     bits |> Array.map gate
@@ -103,13 +103,12 @@ let DMux4Way x (sel:bool array) =
     let (d1,d2) = DMux x sel.[1]
     let (a,b) = DMux d1 sel.[0]
     let (c,d) = DMux d2 sel.[0]
-    (a,b,c,d)
+    [|a;b;c;d|]
 
 let DMux8Way x (sel:bool array) = 
     let (d1,d2) = DMux x sel.[2]
-    let (a,b,c,d) = DMux4Way d1 sel.[0..1]
-    let (e,f,g,h) = DMux4Way d2 sel.[0..1]
-    (a,b,c,d,e,f,g,h)
+    DMux4Way d1 sel.[0..1]
+    |> Array.append (DMux4Way d2 sel.[0..1])
 
 let HalfAdder a b = 
     let sum = Xor a b

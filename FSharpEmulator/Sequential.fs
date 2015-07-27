@@ -18,7 +18,6 @@ type DFF() =
         | true -> state <- d
         | _ -> ()
         pState
-    
 
 //The Set-Reset (SR) Latch - The inputs can be thought of as negated (they need to be set to false to take affect!)
 //The 2 output vars (The latch state) are Q and !Q - It is assumed !Q should always be the inverse of Q
@@ -67,6 +66,35 @@ type DFlipFlop() =
     member x.execute d clk =
         ff.execute d (Not d) clk
 
+//TODO - Need to make standard interface for state holding chips.
+
+//Stores a single bit.
+//The Mux chip acts as a selector on whether to store a new value or keep hold of the old DFF value
+type Bit() =
+    let dff = new DFF()
+    let mutable state = false
+    member x.execute d clk load =
+        state <- dff.execute (Mux d state load) clk
+        state
+
+//A 16 bit register - We could of course parameterise the constructer with the array size
+type Register() = 
+    let bits = [|for i in 1 .. 16 -> new Bit()|]
+    member x.execute (inBits: bool array) clk load =
+         bits
+         |> Array.mapi (fun i b -> b.execute inBits.[i] clk load)
+
+//An 16 bit wide 8 bit size, register array.
+//Utilises Mux and DMux to select the correct register to store the value in
+type RAM8() =
+    let registers = [|for i in 1 .. 8 -> new Register()|]
+    member x.execute (inBits: bool array) clk load (address: bool array) = 
+        let loadArray = DMux8Way load address
+        let state = registers |> Array.mapi (fun i r -> r.execute inBits clk loadArray.[i])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+
+
+
 //type ClockedSRLatch() =
 //    let mutable state = (false,false)
 //    member x.execute s r clk =
@@ -77,6 +105,7 @@ type DFlipFlop() =
 //                   Nand (fst state) r)
 //        | _ -> ()
 //        pState 
+
 
     
 type TestHarness = 

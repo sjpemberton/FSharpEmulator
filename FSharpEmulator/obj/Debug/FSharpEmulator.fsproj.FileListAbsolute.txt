@@ -1,1 +1,9 @@
 F:\Development\FSharpEmulator\FSharpEmulator\obj\Debug\FSharpEmulator.fsprojResolveAssemblyReference.cache
+F:\Development\FSharpEmulator\FSharpEmulator\bin\Debug\FSharpEmulator.XML
+F:\Development\FSharpEmulator\FSharpEmulator\obj\Debug\FSharpEmulator.exe
+F:\Development\FSharpEmulator\FSharpEmulator\obj\Debug\FSharpEmulator.pdb
+F:\Development\FSharpEmulator\FSharpEmulator\bin\Debug\FSharpEmulator.exe.config
+F:\Development\FSharpEmulator\FSharpEmulator\bin\Debug\FSharpEmulator.exe
+F:\Development\FSharpEmulator\FSharpEmulator\bin\Debug\FSharpEmulator.pdb
+F:\Development\FSharpEmulator\FSharpEmulator\bin\Debug\FSharp.Core.dll
+F:\Development\FSharpEmulator\FSharpEmulator\bin\Debug\FSharp.Core.xml
