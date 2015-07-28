@@ -1,6 +1,26 @@
 ﻿module Sequential
 
 open ArithmeticLogicUnit
+open Utils
+
+type clk =
+    | Tick
+    | Tock
+
+[<AbstractClass>]
+type Chip() =
+    member x.inputs: int array = Array.empty
+    member x.outputs: int array = Array.empty
+    abstract member execute: clk -> unit
+
+type testDff() =
+    inherit Chip()
+    let mutable state = false
+    override this.execute clk = 
+        let pState = state
+        match clk with //Only set the state on a tock 
+        | Tock -> state <- this.inputs.[1] |> intToBool
+        | _ -> ()
 
 //The DFF (Data Flip Flop)
 //I have skipped building this chip from combinatorial chips as it is long winded.
@@ -18,6 +38,8 @@ type DFF() =
         | true -> state <- d
         | _ -> ()
         pState
+
+
 
 //The Set-Reset (SR) Latch - The inputs can be thought of as negated (they need to be set to false to take affect!)
 //The 2 output vars (The latch state) are Q and !Q - It is assumed !Q should always be the inverse of Q
@@ -93,6 +115,69 @@ type RAM8() =
         let state = registers |> Array.mapi (fun i r -> r.execute inBits clk loadArray.[i])
         Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
+type RAM64() =
+    let ramArray = [|for i in 1 .. 8 -> new RAM8()|]
+    member x.execute (inBits: bool array) clk load (address: bool array) =
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..5])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+
+//Beginning to see the pattern.......
+
+type RAM512() =
+    let ramArray = [|for i in 1 .. 8 -> new RAM64()|]
+    member x.execute (inBits: bool array) clk load (address: bool array) =
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..8])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+
+type RAM4k() =
+    let ramArray = [|for i in 1 .. 8 -> new RAM512()|]
+    member x.execute (inBits: bool array) clk load (address: bool array) =
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..11])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+
+type RAM16k() =
+    let ramArray = [|for i in 1 .. 8 -> new RAM4k()|]
+    member x.execute (inBits: bool array) clk load (address: bool array) =
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..14])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+
+//Generic implementation!
+
+//type RamSize =
+//    | Bit8 
+//    | Bit64 
+//    | Bit512
+//    | KB4   
+//    | KB16  
+//
+//let getSize = function
+//    | Bit8   -> 8
+//    | Bit64  -> 64
+//    | Bit512 -> 512
+//    | KB4    -> 4096
+//    | KB16   -> 32768
+//
+//let getRamSize = function
+//    | 64    -> Bit64 
+//    | 512   -> Bit512
+//    | 4096  -> KB4   
+//    | 32768 -> KB16
+//    | _     -> Bit8  
+//    
+//
+//type RAM(bit:RamSize) = 
+//    let next = getSize bit / 8
+//
+//    let ramArray = [|for i in 1 .. 8 -> new RAM(next |> getRamSize)|]
+//    member x.execute (inBits: bool array) clk load (address: bool array) =
+//        let ramLoad = DMux8Way load address.[0..2]
+//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..14])
+//        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+        
 
 
 //type ClockedSRLatch() =
