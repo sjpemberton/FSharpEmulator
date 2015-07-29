@@ -103,8 +103,7 @@ type Bit() =
 type Register() = 
     let bits = [|for i in 1 .. 16 -> new Bit()|]
     member x.execute (inBits: bool array) clk load =
-         bits
-         |> Array.mapi (fun i b -> b.execute inBits.[i] clk load)
+         bits |> Array.mapi (fun i b -> b.execute inBits.[i] clk load)
 
 //An 16 bit wide 8 bit size, register array.
 //Utilises Mux and DMux to select the correct register to store the value in
@@ -139,58 +138,42 @@ type RAM4k() =
         Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 type RAM16k() =
-    let ramArray = [|for i in 1 .. 8 -> new RAM4k()|]
+    let ramArray = [|for i in 1 .. 4 -> new RAM4k()|]
     member x.execute (inBits: bool array) clk load (address: bool array) =
         let ramLoad = DMux8Way load address.[0..2]
-        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..14])
+        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..13])
         Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+
+//type Counter() = 
+//    let register = new Register()
+//    member x.execute (inBits: bool array) inc load reset =
+
+        
 
 //Generic implementation!
 
-//type RamSize =
-//    | Bit8 
-//    | Bit64 
-//    | Bit512
-//    | KB4   
-//    | KB16  
-//
-//let getSize = function
-//    | Bit8   -> 8
-//    | Bit64  -> 64
-//    | Bit512 -> 512
-//    | KB4    -> 4096
-//    | KB16   -> 32768
-//
-//let getRamSize = function
-//    | 64    -> Bit64 
-//    | 512   -> Bit512
-//    | 4096  -> KB4   
-//    | 32768 -> KB16
-//    | _     -> Bit8  
-//    
-//
-//type RAM(bit:RamSize) = 
-//    let next = getSize bit / 8
-//
-//    let ramArray = [|for i in 1 .. 8 -> new RAM(next |> getRamSize)|]
-//    member x.execute (inBits: bool array) clk load (address: bool array) =
-//        let ramLoad = DMux8Way load address.[0..2]
-//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..14])
-//        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
-        
+type RamSize =
+    | Bit8 
+    | Bit64 
+    | Bit512
+    | KB4   
+    | KB16  
 
-
-//type ClockedSRLatch() =
-//    let mutable state = (false,false)
-//    member x.execute s r clk =
-//        let pState = state
-//        match clk with //Only set the state on a tock 
-//        | true -> state <- 
-//                  (Nand s (snd state),
-//                   Nand (fst state) r)
-//        | _ -> ()
-//        pState 
-
+let getSize = function 
+    | Bit8   -> 8
+    | Bit64  -> 64
+    | Bit512 -> 512
+    | KB4    -> 4096
+    | KB16   -> 16384
+    
+    
+//More F# approach
+type RAM(size) = 
+    let regArray = [|for i in 1 .. size |> getSize -> new Register()|]
+    member x.execute (inBits: bool array) clk load (address: bool array) =
+        let index = address |> Array.map boolToInt
+                            |> toDecimal 16
+        regArray.[index].execute inBits clk load //Need to handle index out of range
 
     
 type TestHarness = 
