@@ -144,10 +144,17 @@ type RAM16k() =
         let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..13])
         Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
-//type Counter() = 
-//    let register = new Register()
-//    member x.execute (inBits: bool array) inc load reset =
-
+type Counter() = 
+    let register = new Register()
+    let mutable state = [|for i in 1..16 -> false|] //State can be removed when we hold in/out pin values per chip!
+    member x.execute (inBits: bool array) clk inc load reset =
+        let next = Increment state
+        let mux1 = MultiMux load next inBits 
+        let mux2 = MultiMux reset mux1 [|for i in 1..16 -> false|]
+        let or1 = Or load inc
+        let or2 = Or or1 reset
+        state <- register.execute mux2 clk load
+        state
         
 
 //Generic implementation!
