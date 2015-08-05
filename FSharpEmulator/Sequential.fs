@@ -146,16 +146,25 @@ type RAM16k() =
 
 type Counter() = 
     let register = new Register()
-    let mutable state = [|for i in 1..16 -> false|] //State can be removed when we hold in/out pin values per chip!
     member x.execute (inBits: bool array) clk inc load reset =
-        let next = Increment state
+        let next = Increment (register.execute inBits clk false) //Increment the current value
         let mux1 = MultiMux load next inBits 
         let mux2 = MultiMux reset mux1 [|for i in 1..16 -> false|]
         let or1 = Or load inc
         let or2 = Or or1 reset
-        state <- register.execute mux2 clk load
-        state
+        register.execute mux2 clk or2
         
+type CounterPM() =
+    let register = new Register()
+    member x.execute (inBits: bool array) clk inc load reset =
+        let toSet = 
+            match reset, load, inc with
+            | true,_,_ -> [|for i in 1..16 -> false|]
+            | false,true,_ -> inBits
+            | false,false,true -> Increment (register.execute inBits clk false)
+            |_,_,_ -> register.execute inBits clk false
+        register.execute toSet clk load
+
 
 //Generic implementation!
 
