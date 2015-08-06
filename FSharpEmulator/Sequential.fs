@@ -15,12 +15,12 @@ type Chip() =
 
 type testDff() =
     inherit Chip()
-    let mutable state = false
+    let mutable state = 0
     override this.execute clk = 
         let pState = state
         match clk with //Only set the state on a tock 
-        | Tock -> state <- this.inputs.[1] |> intToBool
-        | _ -> ()
+        | Tock -> state <- this.inputs.[0]
+        | _ -> this.outputs.[0] <- state
 
 //The DFF (Data Flip Flop)
 //I have skipped building this chip from combinatorial chips as it is long winded.
@@ -44,16 +44,25 @@ type DFF() =
 //The Set-Reset (SR) Latch - The inputs can be thought of as negated (they need to be set to false to take affect!)
 //The 2 output vars (The latch state) are Q and !Q - It is assumed !Q should always be the inverse of Q
 //Setting both S and R to false will cause issues with this logic and Q and !Q will be equal!
-//As we cannot have a cyclic chip we need to model it with implicit state - This is not technically correct bug gets the job done!
+//As we cannot have a cyclic chip we need to model it with implicit state - This is not technically correct but gets the job done!
 //Effectively the state represents the continuous current
 //This implementation has inherit propagation delay for an entire cycle but misses the subtlety of the tick-tock 
-type SRLatch() =
+//type SRLatch() =
+//    let mutable state = (false,false)
+//    member x.execute s r = 
+//        state <- (Nand s (snd state),
+//                  Nand (fst state) r)
+//        state
+
+type SRLatch() = 
+    inherit Chip()
     let mutable state = (false,false)
-    member x.execute s r = 
+    override this.execute clk = 
+        let (s,r) = (this.inputs.[0] |> intToBool, this.inputs.[1] |> intToBool)
         state <- (Nand s (snd state),
                   Nand (fst state) r)
-        state
-
+        this.outputs.[0] <- fst state |> boolToInt
+        this.outputs.[1] <- snd state |> boolToInt
 
 //Adding the clk into the latch allows us to control when the state is set (Ie -only when the clock is high (true))
 type ClockedSRLatch() =
@@ -163,7 +172,7 @@ type CounterPM() =
             | false,true,_ -> inBits
             | false,false,true -> Increment (register.execute inBits clk false)
             |_,_,_ -> register.execute inBits clk false
-        register.execute toSet clk load
+        register.execute toSet clk (load || reset || inc)
 
 
 //Generic implementation!
