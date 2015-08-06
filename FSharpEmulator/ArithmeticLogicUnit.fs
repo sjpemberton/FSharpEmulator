@@ -4,44 +4,44 @@ module PatternMatched =
 
     let Nand a b = 
         match a, b with
-        | true, true -> false
-        | _, _ -> true
+        | 1s, 1s -> 0s
+        | _, _ -> 1s
 
     let Not a = function
-        | true -> false
-        | false -> true
+        | 1s -> 0s
+        | _ -> 1s
 
     let And a b = 
         match a, b with
-        | true, true -> true
-        | _, _ -> false
+        | 1s, 1s -> 1s
+        | _, _ -> 0s
 
     let Or a b =
         match a, b with
-        | true, _ -> true
-        | _, true -> true
-        | _, _ -> false 
+        | 1s, _ -> 1s
+        | _, 1s -> 1s
+        | _, _ -> 0s 
 
     let Xor a b =
         match a, b with
-        | true, false -> true
-        | false, true -> true
-        | _, _ -> false
+        | 1s, 0s -> 1s
+        | 0s, 1s -> 1s
+        | _, _ -> 0s
 
     let Mux sel a b  =
         match sel with
-        | false -> a
+        | 0s -> a
         | _ -> b
 
     let DMux sel x =
         match sel with
-        | false -> (x,false)
-        | _ -> (false,x)
+        | 0s -> (x,0s)
+        | _ -> (0s,x)
 
 let Nand a b = 
     match a, b with
-    | true, true -> false
-    | _, _ -> true
+    | 1s, 1s -> 0s
+    | _, _ -> 1s
 
 let Not a = Nand a a
 
@@ -89,25 +89,25 @@ let MultiWayOr bits =
 
 let MultiXNOR = binaryArray XNOR
 
-let Mux4Way16 a b c d (sel:bool array) = 
-    let m1 = MultiMux sel.[0] a b 
+let Mux4Way1s6 a b c d (sel:int16 array) = 
+    let m1s = MultiMux sel.[0] a b 
     let m2 = MultiMux sel.[0] c d
-    MultiMux sel.[1] m1 m2 
+    MultiMux sel.[1] m1s m2 
 
-let Mux8Way16 a b c d e f g h (sel:bool array) =
-    let m1 = Mux4Way16 a b c d sel.[0..1]
-    let m2 = Mux4Way16 e f g h sel.[0..1]
-    MultiMux sel.[2] m1 m2 
+let Mux8Way1s6 a b c d e f g h (sel:int16 array) =
+    let m1s = Mux4Way1s6 a b c d sel.[0..1]
+    let m2 = Mux4Way1s6 e f g h sel.[0..1]
+    MultiMux sel.[2] m1s m2 
 
-let DMux4Way x (sel:bool array) = 
-    let (d1,d2) = DMux x sel.[1]
-    let (a,b) = DMux d1 sel.[0]
+let DMux4Way x (sel:int16 array) = 
+    let (d1s,d2) = DMux x sel.[1]
+    let (a,b) = DMux d1s sel.[0]
     let (c,d) = DMux d2 sel.[0]
     [|a;b;c;d|]
 
-let DMux8Way x (sel:bool array) = 
-    let (d1,d2) = DMux x sel.[2]
-    DMux4Way d1 sel.[0..1]
+let DMux8Way x (sel:int16 array) = 
+    let (d1s,d2) = DMux x sel.[2]
+    DMux4Way d1s sel.[0..1]
     |> Array.append (DMux4Way d2 sel.[0..1])
 
 let HalfAdder a b = 
@@ -116,9 +116,9 @@ let HalfAdder a b =
     (sum,carry)
 
 let FullAdder a b c = 
-    let (s1,c1) = HalfAdder a b
-    let (sum,c2) = HalfAdder s1 c
-    (sum, Or c1 c2)
+    let (s1s,c1s) = HalfAdder a b
+    let (sum,c2) = HalfAdder s1s c
+    (sum, Or c1s c2)
 
 //Ripple Carry Adder Implementation
 let Adder aBits bBits =
@@ -129,22 +129,22 @@ let Adder aBits bBits =
             addBits aTail bTail c (sum :: accu)
         | [],_
         | _,[] -> accu
-    addBits (aBits |> Array.rev |> Array.toList) (bBits |> Array.rev |> Array.toList) false List.empty
+    addBits (aBits |> Array.rev |> Array.toList) (bBits |> Array.rev |> Array.toList) 0s List.empty
     |> List.toArray
 
 //In plus one
-let Increment aBits = Adder aBits [| for i in 1 .. 16 -> match i with | 16 -> true | _ -> false |]
+let Increment aBits = Adder aBits [| for i in 1 .. 16 -> match i with | 16 -> 1s | _ -> 0s |]
 
 let ALU xBits yBits nx zx ny zy f no = 
     //handle x    
-    let ox1 = MultiMux zx xBits [|for i in 1..16 -> false |]  //Zero all X bits if zx
-    let nox1 = MultiNot ox1 //What would this be if negated
-    let ox2 = MultiMux nx ox1 nox1 //Select based on nx
+    let ox1s = MultiMux zx xBits [|for i in 1..16 -> 0s |]  //Zero all X bits if zx
+    let nox1s = MultiNot ox1s //What would this be if negated
+    let ox2 = MultiMux nx ox1s nox1s //Select based on nx
 
     //handle y
-    let oy1 = MultiMux zy yBits [|for i in 1..16 -> false |]  //Zero all X bits if zy
-    let noy1 = MultiNot oy1 //What would this be if negated
-    let oy2 = MultiMux ny oy1 noy1 //Select based on ny
+    let oy1s = MultiMux zy yBits [|for i in 1..16 -> 0s |]  //Zero all X bits if zy
+    let noy1s = MultiNot oy1s //What would this be if negated
+    let oy2 = MultiMux ny oy1s noy1s //Select based on ny
 
     //handle & / +
     let o3 = MultiAnd ox2 oy2 //an and would be
@@ -156,7 +156,7 @@ let ALU xBits yBits nx zx ny zy f no =
     let out = MultiMux no o5 no5 //Choose to negate or not
 
     let zr = Not (MultiWayOr out)
-    let ng = MultiWayOr (MultiAnd out [|for i in 1..16 -> match i with | 16 -> true | _ -> false|] )
+    let ng = MultiWayOr (MultiAnd out [|for i in 1..16 -> match i with | 16 -> 1s | _ -> 0s|] )
     
     (out, zr, ng)
 

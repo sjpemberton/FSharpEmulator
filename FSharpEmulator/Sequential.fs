@@ -4,23 +4,27 @@ open ArithmeticLogicUnit
 open Utils
 
 type clk =
-    | Tick
-    | Tock
+    | Tick = 0s
+    | Tock = 1s
+    
+let flip = function
+    | clk.Tick -> clk.Tock
+    | _ -> clk.Tick
 
 [<AbstractClass>]
 type Chip() =
-    member x.inputs: int array = Array.empty
-    member x.outputs: int array = Array.empty
+    member val inputs: int16 array = Array.empty with get,set
+    member val outputs : int16 array = Array.empty with get,set
     abstract member execute: clk -> unit
 
-type testDff() =
+type DFF() =
     inherit Chip()
-    let mutable state = 0
-    override this.execute clk = 
+    let mutable state = 0s
+    override x.execute clk = 
         let pState = state
         match clk with //Only set the state on a tock 
-        | Tock -> state <- this.inputs.[0]
-        | _ -> this.outputs.[0] <- state
+        | clk.Tock -> state <- x.inputs.[0]
+        | _ -> x.outputs.[0] <- state
 
 //The DFF (Data Flip Flop)
 //I have skipped building this chip from combinatorial chips as it is long winded.
@@ -30,14 +34,14 @@ type testDff() =
 //The DFF therefore accepts its state on a the tock, but does not expose this on the output pin until the following tick.
 
 //The DFF inherently no needs some form of state, as we need to pass the previous clk cycles value out of the function.
-type DFF() = 
-    let mutable state = false
-    member x.execute d clk = 
-        let pState = state
-        match clk with //Only set the state on a tock 
-        | true -> state <- d
-        | _ -> ()
-        pState
+//type DFF() = 
+//    let mutable state = 0s
+//    member x.execute d clk = 
+//        let pState = state
+//        match clk with //Only set the state on a tock 
+//        | true -> state <- d
+//        | _ -> ()
+//        pState
 
 
 
@@ -56,63 +60,75 @@ type DFF() =
 
 type SRLatch() = 
     inherit Chip()
-    let mutable state = (false,false)
-    override this.execute clk = 
-        let (s,r) = (this.inputs.[0] |> intToBool, this.inputs.[1] |> intToBool)
+    let mutable state = (0s,0s)
+    override x.execute clk = 
+        let (s,r) = (x.inputs.[0], x.inputs.[1])
         state <- (Nand s (snd state),
                   Nand (fst state) r)
-        this.outputs.[0] <- fst state |> boolToInt
-        this.outputs.[1] <- snd state |> boolToInt
+        x.outputs <- [|fst state; snd state;|]
 
 //Adding the clk into the latch allows us to control when the state is set (Ie -only when the clock is high (true))
 type ClockedSRLatch() =
-    let mutable state = (false,false)
-    member x.execute s r clk =
-        let (ns, nr) = (Nand s clk, Nand r clk)
-        state <- (Nand ns (snd state),
-                  Nand (fst state) nr)
-        state
-
+    inherit SRLatch()
+    let mutable state = (0s,0s)
+    override x.execute clk =
+        let (s,r,clk2) = (x.inputs.[0], x.inputs.[1], clk |> int16 )
+        x.inputs <- [|Nand s clk2; Nand r clk2|]
+        base.execute clk
+        
 //A master - slave latch configuration
 //This adds a delay to the setting of the slave state, allowing the chip to have the entire clock cycle to settle into it's state.
 type RsFlipFlop() =
-    let mutable state = (false,false)
+    inherit Chip()
+    let mutable state = (0s,0s)
     let master = new ClockedSRLatch()
     let slave = new ClockedSRLatch()
-    member x.execute s r clk = 
-        let (a,b) = master.execute s r clk
-        slave.execute a b (Not clk)
+    override x.execute clk = 
+        master.inputs <- x.inputs
+        master.execute clk
+        slave.inputs <- master.outputs
+        clk |> flip |> slave.execute 
 
 //Clocked D latch is simply an SR latch with only one input.
 //The S input is negated to supply the R input
 type ClockedDLatch() =
+    inherit Chip()
     let latch = new ClockedSRLatch()
-    member x.execute d clk =
-        latch.execute d (Not d) clk
+    override x.execute clk =
+         latch.inputs <- [|x.inputs.[0]; (Not x.inputs.[0])|]
+         latch.execute clk
 
 //The DFF
 //It is just an RS Flip Flop with a single input negated to supply both 
+//This could also be made form a clockedDLatch and an RS latch instead
 type DFlipFlop() =
+    inherit Chip()
     let ff = new RsFlipFlop()
-    member x.execute d clk =
-        ff.execute d (Not d) clk
+    override x.execute clk =
+         ff.inputs <- [|x.inputs.[0]; (Not x.inputs.[0])|]
+         ff.execute clk
 
 //TODO - Need to make standard interface for state holding chips.
 
 //Stores a single bit.
 //The Mux chip acts as a selector on whether to store a new value or keep hold of the old DFF value
 type Bit() =
+    inherit Chip()
     let dff = new DFF()
-    let mutable state = false
-    member x.execute d clk load =
-        state <- dff.execute (Mux d state load) clk
-        state
+    let mutable state = 0s
+    override x.execute clk =
+        dff.inputs <- [|Mux x.inputs.[0] state x.inputs.[1]|]
+        dff.execute clk
+        state <- dff.outputs.[0]
 
-//A 16 bit register - We could of course parameterise the constructer with the array size
+//A 16 bit register 
 type Register() = 
+    inherit Chip()
     let bits = [|for i in 1 .. 16 -> new Bit()|]
-    member x.execute (inBits: bool array) clk load =
-         bits |> Array.mapi (fun i b -> b.execute inBits.[i] clk load)
+    override x.execute clk =
+        let inBits = x.inputs.[0] |> toBinary
+        bits |> Array.iteri (fun i b -> b.inputs <- [|inBits.[i]; x.inputs.[1]|] 
+                                        b.execute clk)
 
 //An 16 bit wide 8 bit size, register array.
 //Utilises Mux and DMux to select the correct register to store the value in

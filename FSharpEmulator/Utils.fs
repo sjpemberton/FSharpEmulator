@@ -5,23 +5,23 @@ open System.IO
 open System
 
 let stringToInt = function 
-    | "1" -> 1
-    | _ -> 0
+    | "1" -> 1s
+    | _ -> 0s
 
 let charToInt = function 
-    | '1' -> 1
-    | _ -> 0
+    | '1' -> 1s
+    | _ -> 0s
 
 let intToBool = function 
-    | 1 -> true
+    | 1s -> true
     | _ -> false
 
 let boolToInt = function 
-    | true -> 1
-    | _ -> 0
+    | true -> 1s
+    | _ -> 0s
 
 let intToString = function 
-    | 1 -> "1"
+    | 1s -> "1"
     | _ -> "0"
 
 //let stringToInts = Array.map stringToInt
@@ -35,7 +35,7 @@ let boolToString = boolToInt >> intToString
 let toBinary i = 
     let rec convert i acc = 
         match i with
-        | _ when i > 0 -> (i % 2) :: convert (i / 2) acc
+        | _ when i > 0s -> (i % 2s) :: convert (i / 2s) acc
         | _ -> acc
     convert i [] |> List.rev |> List.toArray
 
@@ -44,25 +44,25 @@ let flipBits b =
         match b with
         | h :: t -> 
             match h with
-            | 1 -> 0 :: convert t acc
-            | _ -> 1 :: convert t acc
+            | 1s -> 0s :: convert t acc
+            | _ -> 1s :: convert t acc
         | [] -> acc
     convert (b |> List.ofSeq) []
     |> List.toArray
 
-let padBits length (bits : int array) =
-    let padding = [| for i in 1..(length - bits.Length) -> 0 |]
+let padBits length (bits : int16 array) =
+    let padding = [| for i in 1..(length - bits.Length) -> 0s |]
     Array.concat [|padding; bits|]
 
 //Doesn't handle overflow
 let toTwosCompliment i b = 
     match i with
-    | _ when i < 0 -> 
-        abs i
+    | _ when i < 0s -> 
+        abs i |> int16
         |> toBinary
         |> padBits b
-        |> flipBits |> Array.map intToBool
-        |> Increment |> Array.map boolToInt
+        |> flipBits 
+        |> Increment
     | _ -> 
         i
         |> toBinary
@@ -75,14 +75,14 @@ let toBase10 b =
         | [] -> acc
     convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int
 
-let toDecimal b (binary : int array) =
+let toDecimal b (binary : int16 array) =
     match binary.[0] with
-    | 0 -> binary |> toBase10
+    | 0s -> binary |> toBase10
     | _ -> 
         -(binary
         |> padBits b
-        |> flipBits |> Array.map intToBool
-        |> Increment |> Array.map boolToInt 
+        |> flipBits 
+        |> Increment
         |> toBase10)
         
 
@@ -114,11 +114,11 @@ let executeTests path func =
     execute func testData 0
 
 let andTest (case : Map<string, string>) = 
-    And (stringToBool case.["a"]) (stringToBool case.["b"]) = stringToBool case.["out"]
+    And (stringToInt case.["a"]) (stringToInt case.["b"]) = stringToInt case.["out"]
 
 let IncTest (case : Map<string, string>) = 
     case.["in"]
-    |> Seq.map (charToInt >> intToBool)
+    |> Seq.map (charToInt)
     |> Seq.toArray
     |> Increment
-    |> boolsToString = case.["out"]
+    |> intsToString = case.["out"]
