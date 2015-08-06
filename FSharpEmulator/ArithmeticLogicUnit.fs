@@ -89,14 +89,14 @@ let MultiWayOr bits =
 
 let MultiXNOR = binaryArray XNOR
 
-let Mux4Way1s6 a b c d (sel:int16 array) = 
+let Mux4Way16 a b c d (sel:int16 array) = 
     let m1s = MultiMux sel.[0] a b 
     let m2 = MultiMux sel.[0] c d
     MultiMux sel.[1] m1s m2 
 
-let Mux8Way1s6 a b c d e f g h (sel:int16 array) =
-    let m1s = Mux4Way1s6 a b c d sel.[0..1]
-    let m2 = Mux4Way1s6 e f g h sel.[0..1]
+let Mux8Way16 a b c d e f g h (sel:int16 array) =
+    let m1s = Mux4Way16 a b c d sel.[0..1]
+    let m2 = Mux4Way16 e f g h sel.[0..1]
     MultiMux sel.[2] m1s m2 
 
 let DMux4Way x (sel:int16 array) = 
