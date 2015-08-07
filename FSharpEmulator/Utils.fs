@@ -39,7 +39,7 @@ let toBinary i =
         | _ -> acc
     convert i [] |> List.rev |> List.toArray
 
-let flipBits b = 
+let flipBits b = //Can just use ~~~ if using ints!
     let rec convert b acc = 
         match b with
         | h :: t -> 
@@ -73,7 +73,7 @@ let toBase10 b =
         match b with
         | h :: t -> float h * 2.0 ** i + convert t (i + 1.0) acc
         | [] -> acc
-    convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int
+    convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int16
 
 let toDecimal b (binary : int16 array) =
     match binary.[0] with
