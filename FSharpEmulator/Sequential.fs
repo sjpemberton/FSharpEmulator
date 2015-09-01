@@ -78,7 +78,7 @@ type ClockedSRLatch() =
     let mutable state = (0s,0s)
     override x.doWork clk inputs =
         let (s,r,clk2) = (inputs.[0], inputs.[1], clk |> int16 )
-        [|Nand s clk2; Nand r clk2|] |> base.execute clk
+        .execute clk [|Nand s clk2; Nand r clk2|]
         
 //A master - slave latch configuration
 //This adds a delay to the setting of the slave state, allowing the chip to have the entire clock cycle to settle into it's state.
