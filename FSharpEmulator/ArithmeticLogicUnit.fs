@@ -137,14 +137,14 @@ let Increment aBits = Adder aBits [| for i in 1 .. 16 -> match i with | 16 -> 1s
 
 let ALU xBits yBits nx zx ny zy f no = 
     //handle x    
-    let ox1s = MultiMux zx xBits [|for i in 1..16 -> 0s |]  //Zero all X bits if zx
-    let nox1s = MultiNot ox1s //What would this be if negated
-    let ox2 = MultiMux nx ox1s nox1s //Select based on nx
+    let ox1 = MultiMux zx xBits [|for i in 1..16 -> 0s |]  //Zero all X bits if zx
+    let nox1 = MultiNot ox1 //What would this be if negated
+    let ox2 = MultiMux nx ox1 nox1 //Select based on nx
 
     //handle y
-    let oy1s = MultiMux zy yBits [|for i in 1..16 -> 0s |]  //Zero all X bits if zy
-    let noy1s = MultiNot oy1s //What would this be if negated
-    let oy2 = MultiMux ny oy1s noy1s //Select based on ny
+    let oy1 = MultiMux zy yBits [|for i in 1..16 -> 0s |]  //Zero all X bits if zy
+    let noy1 = MultiNot oy1 //What would this be if negated
+    let oy2 = MultiMux ny oy1 noy1 //Select based on ny
 
     //handle & / +
     let o3 = MultiAnd ox2 oy2 //an and would be
@@ -160,3 +160,14 @@ let ALU xBits yBits nx zx ny zy f no =
     
     (out, zr, ng)
 
+let AltALU xBits yBits zx nx zy ny f no = 
+        let zero c b = if c = 1s then [| for i in 1..16 -> 0s |] else b 
+        let negate c b = if c then MultiNot b else b
+        let x = xBits |> zero zx |> negate nx 
+        let y = yBits |> zero zy |> negate ny 
+
+        //Apply function and negate if needed
+        let out = if f then MultiAnd x y else Adder x y
+                  |> negate no
+         
+        (out, MultiWayOr out |> Not, MultiAnd out [| for i in 1..16 -> match i with | 16 -> 1s | _ -> 0s |] |> MultiWayOr)

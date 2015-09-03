@@ -13,7 +13,6 @@ let flip = function
 
 [<AbstractClass>]
 type Chip() =
-    //member val inputs: int16 array = Array.empty with get, set
     member val outputs : int16 array = Array.empty with get, set
     abstract member doWork: clk -> int16 array -> int16 array
     member x.execute clk inputs = 
@@ -63,6 +62,15 @@ type DFF() =
 //                  Nand (fst state) r)
 //        state
 
+//type bit = 
+//    | T
+//    | F
+//
+//let n a b = 
+//    match a, b with
+//    | T, T -> F
+//    | _, _ -> T
+
 type SRLatch() = 
     inherit Chip()
     let mutable state = (0s,0s)
@@ -79,6 +87,7 @@ type ClockedSRLatch() =
     override x.doWork clk inputs =
         let (s,r,clk2) = (inputs.[0], inputs.[1], clk |> int16 )
         [|Nand s clk2; Nand r clk2|] |> srLatch.execute clk
+
         
 //A master - slave latch configuration
 //This adds a delay to the setting of the slave state, allowing the chip to have the entire clock cycle to settle into it's state.
@@ -233,19 +242,24 @@ type RAM(size) =
     
 type TestHarness = 
     {
-        inputs:bool array; 
-        outputs: bool array option;
-        chip: bool array -> bool array 
+        inputs:int16 array; 
+        outputs: int16 array;
+        chips: Chip array 
     }
 
 let cycle iterations (harness:TestHarness) =
-    let rec doCycle i state = 
-        let result = {state with outputs = Some (harness.chip state.inputs) }
+    let rec doCycle i clk state = 
+        let result = {state with outputs = 
+                                 harness.chips 
+                                 |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) state.inputs }
+
         printfn "%A" result.outputs
-        if i > 1
-        then doCycle (i-1) result
+        if i > 0
+        then match clk with
+             | clk.Tock -> doCycle i (flip clk) result
+             | _ -> doCycle (i-1) (flip clk) result
         else result 
-    doCycle iterations harness
+    doCycle iterations clk.Tick harness
 
 let setInputs ins harness = 
     {harness with inputs = ins;}
@@ -253,3 +267,7 @@ let setInputs ins harness =
 //let testLatch (i: bool array) =
 //    let (a,b) = l.execute i.[0] i.[1]
 //    [|a;b;|]
+
+let testLatch = 
+    let th = {inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
+    cycle 5 th
