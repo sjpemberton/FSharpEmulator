@@ -93,7 +93,6 @@ type ClockedSRLatch() =
 //This adds a delay to the setting of the slave state, allowing the chip to have the entire clock cycle to settle into it's state.
 type RsFlipFlop() =
     inherit Chip()
-    let mutable state = (0s,0s)
     let master = new ClockedSRLatch()
     let slave = new ClockedSRLatch()
     override x.doWork clk inputs = 
