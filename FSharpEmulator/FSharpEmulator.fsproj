@@ -52,6 +52,7 @@
     <Compile Include="Utils.fs" />
     <Compile Include="Sequential.fs" />
     <Compile Include="Program.fs" />
+    <None Include="tests.fsx" />
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
