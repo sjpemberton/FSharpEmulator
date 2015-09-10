@@ -86,7 +86,7 @@ type ClockedSRLatch() =
     let srLatch = SRLatch()
     override x.doWork clk inputs =
         let (s,r,clk2) = (inputs.[0], inputs.[1], clk |> int16 )
-        [|Nand s clk2; Nand r clk2|] |> srLatch.execute clk
+        [|Nand s clk2; Nand clk2 r|] |> srLatch.execute clk
 
         
 //A master - slave latch configuration
@@ -248,11 +248,12 @@ type TestHarness =
 
 let cycle iterations (harness:TestHarness) =
     let rec doCycle i clk state = 
+        printfn "%s%A" "inputs = " state.inputs
         let result = {state with outputs = 
                                  harness.chips 
                                  |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) state.inputs }
 
-        printfn "%A" result.outputs
+        printfn "%s%A" "outputs = " result.outputs
         if i > 0
         then match clk with
              | clk.Tock -> doCycle i (flip clk) result
