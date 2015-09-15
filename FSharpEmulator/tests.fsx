@@ -18,8 +18,27 @@ let testSRFlipFlop =
     let th = {inputs = [|0s;1s|]; outputs = Array.empty; chips = [|new RsFlipFlop()|]}
     cycle 10 th
 
+type testLatch() = 
+    inherit Chip()
+    let mutable state = (None, None)
+    override x.doWork clk inputs = 
+        let (s,r) = (Nand inputs.[0] (clk |> int16), Nand (clk |> int16) inputs.[1])
+        match state with 
+        | Some x, Some y ->
+            state <- (Some (Nand s y),
+                      Some (Nand x r))
+        | _,_ -> state <- (Some 0s, Some 0s)
+        [|(fst state).Value; (snd state).Value;|]
+
+let tl = new testLatch()
+tl.execute clk.Tick [|0s;1s|]
+tl.execute clk.Tock [|0s;1s|]
+
 let latch = new SRLatch()
-latch.execute clk.Tick [|1s;1s|]
+let i = [|Nand 0s 0s; Nand 0s 1s|];;
+latch.execute clk.Tick i
+let i2 = [|Nand 0s 1s; Nand 1s 1s|];;
+latch.execute clk.Tock i2
 
 let master = new ClockedSRLatch()
 let slave = new ClockedSRLatch()
