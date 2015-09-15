@@ -62,32 +62,18 @@ type DFF() =
 //                  Nand (fst state) r)
 //        state
 
-//type bit = 
-//    | T
-//    | F
-//
-//let n a b = 
-//    match a, b with
-//    | T, T -> F
-//    | _, _ -> T
-
-//state <- (Nand s (snd state), Nand (fst state) r)
-
+//We also mock the sequential nature of the NAND chips - One NAND will always win in the real world.
 type SRLatch() = 
     inherit Chip()
-    let mutable state = (0s,0s)
+    let state = [|0s; 0s|]
     override x.doWork clk inputs = 
-        let (s,r) = (inputs.[0], inputs.[1])
-        //Mock the sequential nature of the NAND chips - One NAND will always win in the real world
         let rand = new System.Random()
         match rand.Next(2) with
-        | 0 -> 
-            state <- (Nand s (snd state),snd state )
-            state <- (fst state, Nand r (fst state) )
-        | _ ->
-            state <- (fst state, Nand r (fst state) )
-            state <- (Nand s (snd state),snd state )
-        [|fst state; snd state;|]
+        | 0 -> state.[0] <- Nand inputs.[0] state.[1]
+               state.[1] <- Nand inputs.[1] state.[0]
+        | _ -> state.[1] <- Nand inputs.[1] state.[0]
+               state.[0] <- Nand inputs.[0] state.[1]
+        state
 
 //Adding the clk into the latch allows us to control when the state is set (Ie -only when the clock is high (true))
 type ClockedSRLatch() =
@@ -255,20 +241,22 @@ type TestHarness =
         chips: Chip array 
     }
 
-let cycle iterations (harness:TestHarness) =
-    let rec doCycle i clk state = 
-        //printfn "%s%A" "inputs = " state.inputs
-        let result = {state with outputs = 
-                                 harness.chips 
-                                 |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) state.inputs }
+let executeChips harness clk =
+    harness.chips |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) harness.inputs
 
-        printfn "%s%A" "outputs = " result.outputs
-        if i > 0
-        then match clk with
-             | clk.Tock -> doCycle i (flip clk) result
-             | _ -> doCycle (i-1) (flip clk) result
-        else result 
-    doCycle iterations clk.Tick harness
+let cycle iterations (harness:TestHarness) =
+    printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
+    let rec iterate i clk state = 
+        match i with
+        | 0 -> state
+        | _ -> 
+            let result = {state with outputs = executeChips state clk }
+            printfn "Cycle %i - clk:%A - outputs: %A" (iterations - i + 1) clk result.outputs
+            match clk with
+            | clk.Tick -> iterate i (flip clk) result
+            | _ -> iterate (i-1) (flip clk) result
+
+    iterate iterations clk.Tick harness
 
 let setInputs ins harness = 
     {harness with inputs = ins;}
