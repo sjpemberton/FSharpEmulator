@@ -71,13 +71,22 @@ type DFF() =
 //    | T, T -> F
 //    | _, _ -> T
 
+//state <- (Nand s (snd state), Nand (fst state) r)
+
 type SRLatch() = 
     inherit Chip()
     let mutable state = (0s,0s)
     override x.doWork clk inputs = 
         let (s,r) = (inputs.[0], inputs.[1])
-        state <- (Nand s (snd state),
-                  Nand (fst state) r)
+        //Mock the sequential nature of the NAND chips - One NAND will always win in the real world
+        let rand = new System.Random()
+        match rand.Next(2) with
+        | 0 -> 
+            state <- (Nand s (snd state),snd state )
+            state <- (fst state, Nand r (fst state) )
+        | _ ->
+            state <- (fst state, Nand r (fst state) )
+            state <- (Nand s (snd state),snd state )
         [|fst state; snd state;|]
 
 //Adding the clk into the latch allows us to control when the state is set (Ie -only when the clock is high (true))
@@ -248,7 +257,7 @@ type TestHarness =
 
 let cycle iterations (harness:TestHarness) =
     let rec doCycle i clk state = 
-        printfn "%s%A" "inputs = " state.inputs
+        //printfn "%s%A" "inputs = " state.inputs
         let result = {state with outputs = 
                                  harness.chips 
                                  |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) state.inputs }
