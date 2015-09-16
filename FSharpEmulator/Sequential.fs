@@ -80,7 +80,7 @@ type ClockedSRLatch() =
     inherit Chip()
     let srLatch = SRLatch()
     override x.doWork clk inputs =
-        let (s,r,clk2) = (inputs.[0], inputs.[1], clk |> int16 )
+        let s,r,clk2 = (inputs.[0], inputs.[1], clk |> int16 )
         [|Nand s clk2; Nand clk2 r|] |> srLatch.execute clk
 
         
@@ -91,9 +91,11 @@ type RsFlipFlop() =
     let master = new ClockedSRLatch()
     let slave = new ClockedSRLatch()
     override x.doWork clk inputs = 
-        inputs
-        |> master.execute clk
-        |> slave.execute (clk |> flip)
+        let ms = master.execute clk inputs
+        //printfn "       Master Latch = clk: %A - outputs: %A" clk ms
+        let ss = slave.execute (clk |> flip) ms
+        //printfn "       Slave Latch = clk: %A - outputs: %A" (clk |> flip) ss
+        ss
 
 //Clocked D latch is simply an SR latch with only one input.
 //The S input is negated to supply the R input
@@ -235,31 +237,30 @@ type RAM(size) =
 
     
 type TestHarness = 
-    {
-        inputs:int16 array; 
-        outputs: int16 array;
-        chips: Chip array 
-    }
+    { inputs : int16 array
+      outputs : int16 array
+      chips : Chip array }
+
+let setInputs i harness = 
+    {harness with inputs = i;}
 
 let executeChips harness clk =
     harness.chips |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) harness.inputs
 
-let cycle iterations (harness:TestHarness) =
+let cycle iterations (harness : TestHarness) = 
     printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
     let rec iterate i clk state = 
         match i with
         | 0 -> state
         | _ -> 
-            let result = {state with outputs = executeChips state clk }
-            printfn "Cycle %i - clk:%A - outputs: %A" (iterations - i + 1) clk result.outputs
+            let result = { state with outputs = executeChips state clk }
+            printfn "   Cycle %i - clk: %A - outputs: %A" (iterations - i + 1) clk result.outputs
             match clk with
             | clk.Tick -> iterate i (flip clk) result
-            | _ -> iterate (i-1) (flip clk) result
-
+            | _ -> iterate (i - 1) (flip clk) result
     iterate iterations clk.Tick harness
 
-let setInputs ins harness = 
-    {harness with inputs = ins;}
+
 
 //let testLatch (i: bool array) =
 //    let (a,b) = l.execute i.[0] i.[1]
