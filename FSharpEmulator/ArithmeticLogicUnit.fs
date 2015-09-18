@@ -7,7 +7,7 @@ module PatternMatched =
         | 1s, 1s -> 0s
         | _, _ -> 1s
 
-    let Not a = function
+    let Not = function
         | 1s -> 0s
         | _ -> 1s
 

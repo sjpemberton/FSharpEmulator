@@ -23,12 +23,12 @@ type Chip() =
 type DFF() =
     inherit Chip()
     let mutable state = 0s
-    override x.doWork clk inputs = 
-        let pState = state
-        match clk with //Only set the state on a tock 
-        | clk.Tock -> state <- inputs.[0]
-        | _ -> x.outputs.[0] <- state
-        [|pState|]
+    let mutable pState = 0s
+    override x.doWork clk inputs =
+        match clk with //Only set the state on a tick - The falling edge
+        | clk.Tick -> state <- pState
+        | _ -> pState <- inputs.[0]
+        [|state|]
 
 //The DFF (Data Flip Flop)
 //I have skipped building this chip from combinatorial chips as it is long winded.
@@ -65,14 +65,10 @@ type DFF() =
 //We also mock the sequential nature of the NAND chips - One NAND will always win in the real world.
 type SRLatch() = 
     inherit Chip()
-    let state = [|0s; 0s|]
-    override x.doWork clk inputs = 
-        let rand = new System.Random()
-        match rand.Next(2) with
-        | 0 -> state.[0] <- Nand inputs.[0] state.[1]
-               state.[1] <- Nand inputs.[1] state.[0]
-        | _ -> state.[1] <- Nand inputs.[1] state.[0]
-               state.[0] <- Nand inputs.[0] state.[1]
+    let mutable state = [|0s; 0s|]
+    override x.doWork clk inputs =
+        state <- [|Nand inputs.[0] state.[1];
+                   Nand inputs.[1] state.[0]|]
         state
 
 //Adding the clk into the latch allows us to control when the state is set (Ie -only when the clock is high (true))
@@ -91,11 +87,9 @@ type RsFlipFlop() =
     let master = new ClockedSRLatch()
     let slave = new ClockedSRLatch()
     override x.doWork clk inputs = 
-        let ms = master.execute clk inputs
-        //printfn "       Master Latch = clk: %A - outputs: %A" clk ms
-        let ss = slave.execute (clk |> flip) ms
-        //printfn "       Slave Latch = clk: %A - outputs: %A" (clk |> flip) ss
-        ss
+        inputs
+        |> master.execute clk
+        |> slave.execute (clk |> flip) 
 
 //Clocked D latch is simply an SR latch with only one input.
 //The S input is negated to supply the R input
@@ -247,19 +241,26 @@ let setInputs i harness =
 let executeChips harness clk =
     harness.chips |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) harness.inputs
 
-let cycle iterations (harness : TestHarness) = 
-    printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
-    let rec iterate i clk state = 
-        match i with
-        | 0 -> state
-        | _ -> 
-            let result = { state with outputs = executeChips state clk }
-            printfn "   Cycle %i - clk: %A - outputs: %A" (iterations - i + 1) clk result.outputs
-            match clk with
-            | clk.Tick -> iterate i (flip clk) result
-            | _ -> iterate (i - 1) (flip clk) result
-    iterate iterations clk.Tick harness
+let rec iterate i clk state = 
+    match i with
+    | 0 -> state
+    | _ -> 
+        let result = { state with outputs = executeChips state clk }
+        //printfn "clk: %A - outputs: %A" clk result.outputs
+        iterate (i - 1) clk result
 
+let cycle iterations clkIters (harness : TestHarness) = 
+    printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
+    let rec doCycle i clk harness =
+        match i with
+        | 0 -> harness
+        | _ ->
+            let result = iterate clkIters clk harness
+            printfn "   Cycle %i - clk: %A - outputs: %A" (iterations - i + 1) clk result.outputs 
+            match clk with
+                | clk.Tick -> doCycle i (flip clk) result
+                | _ -> doCycle (i-1) (flip clk) result
+    doCycle iterations clk.Tick harness
 
 
 //let testLatch (i: bool array) =
@@ -268,4 +269,4 @@ let cycle iterations (harness : TestHarness) =
 
 let testLatch = 
     let th = {inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
-    cycle 5 th
+    cycle 5 3 th
