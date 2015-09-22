@@ -249,7 +249,7 @@ let rec iterate i clk state =
         //printfn "clk: %A - outputs: %A" clk result.outputs
         iterate (i - 1) clk result
 
-let cycle iterations clkIters (harness : TestHarness) = 
+let cycle iterations clkIters harness = 
     printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
     let rec doCycle i clk harness =
         match i with
