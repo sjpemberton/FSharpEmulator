@@ -74,3 +74,43 @@ let testDFF =
     |> setInputs [|1s|]
     |> cycle 2 4
 
+
+module CombinatorialExpressions = 
+
+    type SimulationState =  
+        | Valid of int16 array
+        | Illegal of string
+
+    let execute (inputs: int16 array) (gate:int16 -> int16 -> int16)  =
+        if inputs.Length < 2
+        then Illegal "Insufficient inputs provided"
+        else Valid [|(gate inputs.[0] inputs.[1])|]
+
+    let combine a b =
+        Valid (Array.append a b)
+
+    type CircuitBuilder() =
+        member this.Bind(m, f) = 
+            match m with
+            | Illegal _ -> m
+            | Valid a -> 
+                printfn "\State is Valid: %A" a
+                f a
+        member this.Return(x) = Valid x
+
+    let circuit = new CircuitBuilder()
+
+    let workflow x y z = 
+        circuit 
+            {
+            let! a = x |> execute [|0s; 1s|]
+            let! b = y |> execute [|0s; 1s|]
+            let! c = combine a b
+//            let! b = a |> execute w
+//            let! c = b |> execute z
+            return c
+            }    
+
+    // test
+    let good = workflow And Or Or
+    //let bad = workflow 12 3 0 1
