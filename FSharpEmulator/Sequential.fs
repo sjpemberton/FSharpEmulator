@@ -246,7 +246,6 @@ let rec iterate i clk state =
     | 0 -> state
     | _ -> 
         let result = { state with outputs = executeChips state clk }
-        //printfn "clk: %A - outputs: %A" clk result.outputs
         iterate (i - 1) clk result
 
 let cycle iterations clkIters harness = 
@@ -263,10 +262,3 @@ let cycle iterations clkIters harness =
     doCycle iterations clk.Tick harness
 
 
-//let testLatch (i: bool array) =
-//    let (a,b) = l.execute i.[0] i.[1]
-//    [|a;b;|]
-
-let testLatch = 
-    let th = {inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
-    cycle 5 3 th
