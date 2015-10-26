@@ -128,9 +128,10 @@ type Register() =
     inherit Chip()
     let bits = [|for i in 1 .. 16 -> new Bit()|]
     override x.doWork clk inputs =
-        let inBits = inputs.[0] |> toBinary
-        bits |> Array.mapi (fun i b -> ([|inBits.[i]; inputs.[1]|] 
+        let inBits = inputs.[0] |> toTwosCompliment 16
+        bits |> Array.mapi (fun i b -> ([|inputs.[1]; inBits.[i]|] 
                                         |> b.execute clk).[0])
+        
         
 
 
@@ -140,66 +141,76 @@ type RAM8() =
     inherit Chip()
     let registers = [|for i in 1 .. 8 -> new Register()|]
     override x.doWork clk inputs =
-        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2])
-        let loadArray = DMux8Way load (address |> toBinary)
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 3)
+        let loadArray = DMux8Way load address
         let state = registers 
                     |> Array.mapi (fun i r -> [|inBits; loadArray.[i]|]
                                               |> r.execute clk)
-        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] (address |> toBinary)
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 type RAM64() =
     inherit Chip()
     let ramArray = [|for i in 1 .. 8 -> new RAM8()|]
     override x.doWork clk inputs =
-        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2])
-        let ramLoad = DMux8Way load  (address |> toBinary).[0..2]
-        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 (address |> toBinary).[3..5]) |])
-        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] (address |> toBinary)
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 6)
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..5]) |])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 //Beginning to see the pattern.......
 
 //type RAM512() =
+//    inherit Chip()
 //    let ramArray = [|for i in 1 .. 8 -> new RAM64()|]
-//    member x.execute (inBits: int16 array) clk load (address: int16 array) =
+//    override x.doWork clk inputs =
+//        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 9)
 //        let ramLoad = DMux8Way load address.[0..2]
-//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..8])
+//        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..8]) |])
 //        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 //
 //type RAM4k() =
+//    inherit Chip()
 //    let ramArray = [|for i in 1 .. 8 -> new RAM512()|]
-//    member x.execute (inBits: int16 array) clk load (address: int16 array) =
+//    override x.doWork clk inputs =
+//        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 12)
 //        let ramLoad = DMux8Way load address.[0..2]
-//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..11])
+//        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..11]) |])
 //        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 //
 //type RAM16k() =
+//    inherit Chip()
 //    let ramArray = [|for i in 1 .. 4 -> new RAM4k()|]
-//    member x.execute (inBits: int16 array) clk load (address: int16 array) =
+//    override x.doWork clk inputs =
+//        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 16)
 //        let ramLoad = DMux8Way load address.[0..2]
-//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..13])
+//        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..13]) |])
 //        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 type Counter() = 
     inherit Chip()
     let register = new Register()
-    override x.doWork clk inputs = //(inBits: int16 array) clk inc load reset =
-        let next = Increment (register.execute clk [| inputs.[0]; 0s |]) //Increment the current value
-        let mux1 = MultiMux inputs.[2] next (inputs.[0] |> toBinary) 
-        let mux2 = MultiMux inputs.[3] mux1 [|for i in 1..16 -> 0s|]
-        let or1 = Or inputs.[2] inputs.[1]
-        let or2 = Or or1 inputs.[3]
-        register.execute clk [| mux2 |> toDecimal 16; or2|]
+    override x.doWork clk inputs = 
+        let (inBits, load, inc, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let current = register.execute clk [|0s; 0s|]
+        let next = Increment (current) //Increment the current value
+        let mux1 = MultiMux load next (inBits |> toTwosCompliment 16) 
+        let mux2 = MultiMux reset mux1 [|for i in 1..16 -> 0s|]
+        let regLoad = Or inc load
+                      |> Or reset
+        register.execute clk [| mux2 |> toDecimal 16; regLoad|]
+        
         
 type CounterPM() =
     inherit Chip()
     let register = new Register()
     override x.doWork clk inputs =
-        let (inBits, inc, load, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let (inBits, load, inc, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let current = register.execute clk [|0s; 0s|]
         let toSet = 
             match reset, load, inc with
             | 1s,_,_ -> [|for i in 1..16 -> 0s|]
-            | 0s,1s,_ -> inBits |> toBinary
-            | 0s,0s,1s -> Increment (register.execute clk [|inBits; 0s|])
+            | 0s,1s,_ -> inBits |> toTwosCompliment 16
+            | 0s,0s,1s -> Increment (current)
             |_,_,_ -> register.execute clk [|inBits; 0s|]
         register.execute clk [|toSet |> toDecimal 16; (load ||| reset ||| inc)|]
 
@@ -210,8 +221,8 @@ type RamSize =
     | Bit8 
     | Bit64 
     | Bit512
-    | KB4   
-    | KB16  
+    | KB4 
+    | KB16
 
 let getSize = function 
     | Bit8   -> 8

@@ -58,7 +58,7 @@ let XNOR a b =
 
 //Basic selector
 let Mux sel a b =
-    Nand (Nand a sel) (Nand (Not sel) b)    
+    Nand (Nand b sel) (Nand (Not sel) a)    
 
 let DMux x sel =
     (And x (Not sel), And x sel)
@@ -90,25 +90,25 @@ let MultiWayOr bits =
 let MultiXNOR = binaryArray XNOR
 
 let Mux4Way16 a b c d (sel:int16 array) = 
-    let m1 = MultiMux sel.[0] a b 
-    let m2 = MultiMux sel.[0] c d
+    let m1 = MultiMux sel.[0] a c 
+    let m2 = MultiMux sel.[0] b d
     MultiMux sel.[1] m1 m2 
 
 let Mux8Way16 a b c d e f g h (sel:int16 array) =
-    let m1 = Mux4Way16 a b c d sel.[0..1]
-    let m2 = Mux4Way16 e f g h sel.[0..1]
-    MultiMux sel.[2] m1 m2 
+    let m1 = Mux4Way16 a b c d sel.[1..2]
+    let m2 = Mux4Way16 e f g h sel.[1..2]
+    MultiMux sel.[0] m1 m2 
 
 let DMux4Way x (sel:int16 array) = 
     let (d1,d2) = DMux x sel.[1]
-    let (a,b) = DMux d1 sel.[0]
-    let (c,d) = DMux d2 sel.[0]
+    let (a,c) = DMux d1 sel.[0]
+    let (b,d) = DMux d2 sel.[0]
     [|a;b;c;d|]
 
 let DMux8Way x (sel:int16 array) = 
-    let (d1,d2) = DMux x sel.[2]
-    DMux4Way d1 sel.[0..1]
-    |> Array.append (DMux4Way d2 sel.[0..1])
+    let (d1,d2) = DMux x sel.[0]
+    DMux4Way d2 sel.[1..2]
+    |> Array.append (DMux4Way d1 sel.[1..2])
 
 let HalfAdder a b = 
     let sum = Xor a b

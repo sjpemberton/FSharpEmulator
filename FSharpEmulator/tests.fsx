@@ -5,6 +5,7 @@
 
 open ArithmeticLogicUnit
 open Sequential
+open Utils
 
 let testLatchPD = 
     let harness = {inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
@@ -77,6 +78,21 @@ let testDFF =
 
 module CombinatorialExpressions = 
 
+    let OrM a b = a || b
+    let AndM a b = a && b
+    let Not a = not a
+    let Nand a b = 
+        match a, b with
+        | true, true -> false
+        | _, _ -> true
+
+    type fakeLatch() = 
+        let mutable state = [|false; false|]
+        member x.exec clk a b =
+            state <- [|Nand a state.[1];
+                       Nand b state.[0]|]
+            state 
+
     type SimulationState =  
         | Valid of int16 array
         | Illegal of string
@@ -100,17 +116,28 @@ module CombinatorialExpressions =
 
     let circuit = new CircuitBuilder()
 
-    let workflow x y z = 
+    let workflow = 
         circuit 
             {
-            let! a = x |> execute [|0s; 1s|]
-            let! b = y |> execute [|0s; 1s|]
+            let! a = And |> execute [|0s; 1s|]
+            let! b = Or |> execute [|0s; 1s|]
             let! c = combine a b
 //            let! b = a |> execute w
 //            let! c = b |> execute z
             return c
             }    
 
+let TestCounter = 
+    let harness = {inputs = [|0s; 0s; 1s; 0s;|]; outputs = Array.empty; chips = [|new Counter()|]}
+    harness
+    |> cycle 3  3
+
     // test
-    let good = workflow And Or Or
+    //let good = workflow And Or Or
     //let bad = workflow 12 3 0 1
+
+    //Need to do:
+
+    //let someFunc a b =  
+    //Parralel Nand a a, Nand b b
+    //|> Nand
