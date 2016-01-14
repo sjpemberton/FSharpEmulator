@@ -23,12 +23,12 @@ type Chip() =
 type DFF() =
     inherit Chip()
     let mutable state = 0s
-    override x.doWork clk inputs = 
-        let pState = state
-        match clk with //Only set the state on a tock 
-        | clk.Tock -> state <- inputs.[0]
-        | _ -> x.outputs.[0] <- state
-        [|pState|]
+    let mutable pState = 0s
+    override x.doWork clk inputs =
+        match clk with //Only set the state on a tick - The falling edge
+        | clk.Tick -> state <- pState
+        | _ -> pState <- inputs.[0]
+        [|state|]
 
 //The DFF (Data Flip Flop)
 //I have skipped building this chip from combinatorial chips as it is long winded.
@@ -62,39 +62,21 @@ type DFF() =
 //                  Nand (fst state) r)
 //        state
 
-//type bit = 
-//    | T
-//    | F
-//
-//let n a b = 
-//    match a, b with
-//    | T, T -> F
-//    | _, _ -> T
-
-//state <- (Nand s (snd state), Nand (fst state) r)
-
+//We also mock the sequential nature of the NAND chips - One NAND will always win in the real world.
 type SRLatch() = 
     inherit Chip()
-    let mutable state = (0s,0s)
-    override x.doWork clk inputs = 
-        let (s,r) = (inputs.[0], inputs.[1])
-        //Mock the sequential nature of the NAND chips - One NAND will always win in the real world
-        let rand = new System.Random()
-        match rand.Next(2) with
-        | 0 -> 
-            state <- (Nand s (snd state),snd state )
-            state <- (fst state, Nand r (fst state) )
-        | _ ->
-            state <- (fst state, Nand r (fst state) )
-            state <- (Nand s (snd state),snd state )
-        [|fst state; snd state;|]
+    let mutable state = [|0s; 0s|]
+    override x.doWork clk inputs =
+        state <- [|Nand inputs.[0] state.[1];
+                   Nand inputs.[1] state.[0]|]
+        state
 
 //Adding the clk into the latch allows us to control when the state is set (Ie -only when the clock is high (true))
 type ClockedSRLatch() =
     inherit Chip()
     let srLatch = SRLatch()
     override x.doWork clk inputs =
-        let (s,r,clk2) = (inputs.[0], inputs.[1], clk |> int16 )
+        let s,r,clk2 = (inputs.[0], inputs.[1], clk |> int16 )
         [|Nand s clk2; Nand clk2 r|] |> srLatch.execute clk
 
         
@@ -107,7 +89,7 @@ type RsFlipFlop() =
     override x.doWork clk inputs = 
         inputs
         |> master.execute clk
-        |> slave.execute (clk |> flip)
+        |> slave.execute (clk |> flip) 
 
 //Clocked D latch is simply an SR latch with only one input.
 //The S input is negated to supply the R input
@@ -146,9 +128,10 @@ type Register() =
     inherit Chip()
     let bits = [|for i in 1 .. 16 -> new Bit()|]
     override x.doWork clk inputs =
-        let inBits = inputs.[0] |> toBinary
-        bits |> Array.mapi (fun i b -> ([|inBits.[i]; inputs.[1]|] 
+        let inBits = inputs.[0] |> toTwosCompliment 16
+        bits |> Array.mapi (fun i b -> ([|inputs.[1]; inBits.[i]|] 
                                         |> b.execute clk).[0])
+        
         
 
 
@@ -158,66 +141,76 @@ type RAM8() =
     inherit Chip()
     let registers = [|for i in 1 .. 8 -> new Register()|]
     override x.doWork clk inputs =
-        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2])
-        let loadArray = DMux8Way load (address |> toBinary)
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 3)
+        let loadArray = DMux8Way load address
         let state = registers 
                     |> Array.mapi (fun i r -> [|inBits; loadArray.[i]|]
                                               |> r.execute clk)
-        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] (address |> toBinary)
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 type RAM64() =
     inherit Chip()
     let ramArray = [|for i in 1 .. 8 -> new RAM8()|]
     override x.doWork clk inputs =
-        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2])
-        let ramLoad = DMux8Way load  (address |> toBinary).[0..2]
-        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 (address |> toBinary).[3..5]) |])
-        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] (address |> toBinary)
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 6)
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..5]) |])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 //Beginning to see the pattern.......
 
 //type RAM512() =
+//    inherit Chip()
 //    let ramArray = [|for i in 1 .. 8 -> new RAM64()|]
-//    member x.execute (inBits: int16 array) clk load (address: int16 array) =
+//    override x.doWork clk inputs =
+//        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 9)
 //        let ramLoad = DMux8Way load address.[0..2]
-//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..8])
+//        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..8]) |])
 //        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 //
 //type RAM4k() =
+//    inherit Chip()
 //    let ramArray = [|for i in 1 .. 8 -> new RAM512()|]
-//    member x.execute (inBits: int16 array) clk load (address: int16 array) =
+//    override x.doWork clk inputs =
+//        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 12)
 //        let ramLoad = DMux8Way load address.[0..2]
-//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..11])
+//        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..11]) |])
 //        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 //
 //type RAM16k() =
+//    inherit Chip()
 //    let ramArray = [|for i in 1 .. 4 -> new RAM4k()|]
-//    member x.execute (inBits: int16 array) clk load (address: int16 array) =
+//    override x.doWork clk inputs =
+//        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toTwosCompliment 16)
 //        let ramLoad = DMux8Way load address.[0..2]
-//        let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..13])
+//        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..13]) |])
 //        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 type Counter() = 
     inherit Chip()
     let register = new Register()
-    override x.doWork clk inputs = //(inBits: int16 array) clk inc load reset =
-        let next = Increment (register.execute clk [| inputs.[0]; 0s |]) //Increment the current value
-        let mux1 = MultiMux inputs.[2] next (inputs.[0] |> toBinary) 
-        let mux2 = MultiMux inputs.[3] mux1 [|for i in 1..16 -> 0s|]
-        let or1 = Or inputs.[2] inputs.[1]
-        let or2 = Or or1 inputs.[3]
-        register.execute clk [| mux2 |> toDecimal 16; or2|]
+    override x.doWork clk inputs = 
+        let (inBits, load, inc, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let current = register.execute clk [|0s; 0s|]
+        let next = Increment (current) //Increment the current value
+        let mux1 = MultiMux load next (inBits |> toTwosCompliment 16) 
+        let mux2 = MultiMux reset mux1 [|for i in 1..16 -> 0s|]
+        let regLoad = Or inc load
+                      |> Or reset
+        register.execute clk [| mux2 |> toDecimal 16; regLoad|]
+        
         
 type CounterPM() =
     inherit Chip()
     let register = new Register()
     override x.doWork clk inputs =
-        let (inBits, inc, load, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let (inBits, load, inc, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let current = register.execute clk [|0s; 0s|]
         let toSet = 
             match reset, load, inc with
             | 1s,_,_ -> [|for i in 1..16 -> 0s|]
-            | 0s,1s,_ -> inBits |> toBinary
-            | 0s,0s,1s -> Increment (register.execute clk [|inBits; 0s|])
+            | 0s,1s,_ -> inBits |> toTwosCompliment 16
+            | 0s,0s,1s -> Increment (current)
             |_,_,_ -> register.execute clk [|inBits; 0s|]
         register.execute clk [|toSet |> toDecimal 16; (load ||| reset ||| inc)|]
 
@@ -228,8 +221,8 @@ type RamSize =
     | Bit8 
     | Bit64 
     | Bit512
-    | KB4   
-    | KB16  
+    | KB4 
+    | KB16
 
 let getSize = function 
     | Bit8   -> 8
@@ -249,34 +242,34 @@ type RAM(size) =
 
     
 type TestHarness = 
-    {
-        inputs:int16 array; 
-        outputs: int16 array;
-        chips: Chip array 
-    }
+    { inputs : int16 array
+      outputs : int16 array
+      chips : Chip array }
 
-let cycle iterations (harness:TestHarness) =
-    let rec doCycle i clk state = 
-        //printfn "%s%A" "inputs = " state.inputs
-        let result = {state with outputs = 
-                                 harness.chips 
-                                 |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) state.inputs }
+let setInputs i harness = 
+    {harness with inputs = i;}
 
-        printfn "%s%A" "outputs = " result.outputs
-        if i > 0
-        then match clk with
-             | clk.Tock -> doCycle i (flip clk) result
-             | _ -> doCycle (i-1) (flip clk) result
-        else result 
+let executeChips harness clk =
+    harness.chips |> Array.fold (fun state (chip: Chip) -> chip.execute clk state) harness.inputs
+
+let rec iterate i clk state = 
+    match i with
+    | 0 -> state
+    | _ -> 
+        let result = { state with outputs = executeChips state clk }
+        iterate (i - 1) clk result
+
+let cycle iterations clkIters harness = 
+    printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
+    let rec doCycle i clk harness =
+        match i with
+        | 0 -> harness
+        | _ ->
+            let result = iterate clkIters clk harness
+            printfn "   Cycle %i - clk: %A - outputs: %A" (iterations - i + 1) clk result.outputs 
+            match clk with
+                | clk.Tick -> doCycle i (flip clk) result
+                | _ -> doCycle (i-1) (flip clk) result
     doCycle iterations clk.Tick harness
 
-let setInputs ins harness = 
-    {harness with inputs = ins;}
 
-//let testLatch (i: bool array) =
-//    let (a,b) = l.execute i.[0] i.[1]
-//    [|a;b;|]
-
-let testLatch = 
-    let th = {inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
-    cycle 5 th

@@ -55,7 +55,7 @@ let padBits length (bits : int16 array) =
     Array.concat [|padding; bits|]
 
 //Doesn't handle overflow
-let toTwosCompliment i b = 
+let toTwosCompliment b i = 
     match i with
     | _ when i < 0s -> 
         abs i |> int16
